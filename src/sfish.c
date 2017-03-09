@@ -49,7 +49,8 @@ int main(int argc, char** argv) {
    init_structs(user,machine); // init the structs
    char *cmd;
 
-   signal(SIGTSTP, suspend_handler);
+   // Set up all signal handlers
+   signal(SIGTSTP, suspend_handler); 
    signal(SIGCHLD, handler);
    signal(SIGINT, int_handler);
 
@@ -63,37 +64,38 @@ int main(int argc, char** argv) {
         rl_bind_keyseq("\\C-p",sf_info_rl);
 
 
-
+        // Read the user input
     while((cmd = readline(print_chpmt(user,machine, fullbuffer,user_str,machine_str))) != NULL){
     
         int background=0;
-        new_argc= parseargs(new_argv,cmd);
+        new_argc= parseargs(new_argv,cmd); 
+        // parse the user input to the respective argument array
         
         int* redirection_array= malloc(new_argc*sizeof(int));
         memset(redirection_array,-1,new_argc*sizeof(int));
         if(new_argv[0]!=NULL){
         find_redirect_output(new_argv,redirection_array);
 
-         if(strcmp(new_argv[new_argc-1],"&")==0){
+         if(strcmp(new_argv[new_argc-1],"&")==0){ // Place this job in the background?
             background=1;
             new_argv[new_argc-1]=NULL;
             new_argc--;
-        }
+        } 
 
-        if (strcmp(new_argv[0],"exit")==0){
+        if (strcmp(new_argv[0],"exit")==0){ // exit the shell
             exit_handler();
             break;
         }
-        else if(strcmp(new_argv[0],"kill")==0){
+        else if(strcmp(new_argv[0],"kill")==0){ // kill a process
             command_count++;
             kill_handler(new_argv,new_argc);
         }
-        else if(strcmp(new_argv[0],"jobs")==0){
+        else if(strcmp(new_argv[0],"jobs")==0){ // display job list
             command_count++;
             handle_output(new_argv,new_argc,redirection_array,print_jobs);
             //print_jobs();
         }
-        else if(strcmp(new_argv[0],"disown")==0){
+        else if(strcmp(new_argv[0],"disown")==0){ // disown a job
             command_count++;
 
             if(new_argv[1]==NULL){
@@ -110,7 +112,7 @@ int main(int argc, char** argv) {
             }
         }
         }
-        else if(strcmp(new_argv[0],"fg")==0){
+        else if(strcmp(new_argv[0],"fg")==0){ // Bring a job to the foreground
             command_count++;
             if(*(new_argv[1])=='%'){
                 char* jid_char= new_argv[1];
@@ -122,7 +124,7 @@ int main(int argc, char** argv) {
                 fg(pid,-1);
             }
         }
-        else if(strcmp(new_argv[0],"bg")==0){
+        else if(strcmp(new_argv[0],"bg")==0){ 
             command_count++;
             if(*(new_argv[1])=='%'){
                 char* jid_char= new_argv[1];
@@ -868,6 +870,7 @@ sigprocmask(SIG_SETMASK, &prev_all, NULL);
 
 }
 
+// Add a job to the jobslist
 void add_job(job* temp){
     current_jid++;
     temp->jid=current_jid;
@@ -875,6 +878,7 @@ void add_job(job* temp){
     head= temp;
 }
 
+// Remove a job from the jobs list
 void remove_job(job* temp){
 
 if(temp!=NULL){
@@ -894,6 +898,8 @@ if(temp!=NULL){
     free(temp);
 }
 }
+
+//SIGKILL HANDLER
 void kill_handler(char** new_argv, int new_argc){
     int signal;
     int pid;
@@ -969,7 +975,7 @@ void kill_handler(char** new_argv, int new_argc){
         prev_return=SUCCESS;
     }
 }
-
+// Print jobs list
 void print_jobs(){
     job* current= head;
     while((current!=NULL)){
@@ -998,6 +1004,8 @@ void print_jobs(){
      prev_return=SUCCESS;
 }
 
+
+// Disown a job
 void disown_handler(char* pid,char* jid){
 if(pid!=NULL){
 int pid_disown= atoi(pid);
@@ -1039,6 +1047,7 @@ else{
 }
 }
 
+// Given a job id, return the job struct
 job* find_job_by_jid(int jid){
     job* current=head;
     while(current!=NULL){
@@ -1051,6 +1060,8 @@ job* find_job_by_jid(int jid){
     }
     return NULL;
 }
+
+// Given a process id, return the job struct
 job* find_job_by_pid(int pid){
     job* current=head;
     while(current!=NULL){
@@ -1065,6 +1076,7 @@ job* find_job_by_pid(int pid){
 
 }
 
+// given a process id, return the job id
 int find_pid_with_jid(int jid){
     job* temp = find_job_by_jid(jid);
 
@@ -1076,6 +1088,7 @@ int find_pid_with_jid(int jid){
     }
 }
 
+// place background process to the foreground
 void fg(int pid , int jid){
     job* current;
     if(pid!=-1){
@@ -1161,7 +1174,7 @@ job* current;
 
 // }
 
-
+//SIGINT HANDLER
 void int_handler(int sig){
     job* current;
     if(fg_job!=NULL){
@@ -1181,6 +1194,7 @@ void int_handler(int sig){
     }
 }
 
+// SIG_SUSPEND HANDLER
 void suspend_handler(int signum){
 
     if(fg_job!=NULL){
@@ -1201,29 +1215,15 @@ void suspend_handler(int signum){
         fg_job=NULL;
 
     }
-
-
-
-    //    if(fg_pid>0){
-    //     job* current;
-    //     if((current=find_job_by_pid(fg_pid))!=NULL){
-    //         if(current->gpid>0){
-    //              killpg(fg_pid,SIGSTOP);
-    //         }
-    //         else{
-    //             kill(fg_pid,SIGSTOP);
-    //         }
-    //     remove_job(current);
-    //     fg_pid=0;
-    //     }
-    // }
 }
-
+// print help key stroke
 int print_help_rl (int count, int key) {
    print_help();
    rl_on_new_line ();
    return 0;
 }
+
+// store current PID key stroke
 int store_pid_rl (int count, int key){
 
     if(head==NULL){
@@ -1244,6 +1244,7 @@ int store_pid_rl (int count, int key){
     return 0;
 }
 
+// get stored PID key stroke
 int get_pid_rl (int count, int key){
     job* current;
     if(spid!=-1 && (current=find_job_by_pid(spid))!=NULL){
@@ -1276,6 +1277,8 @@ int get_pid_rl (int count, int key){
     rl_on_new_line ();
     return 0;
 }
+
+//Print out information
 int sf_info_rl(int count, int key){
     write(STDOUT,"\n----Info----\n",14);
     write(STDOUT,"help\n",5);
